@@ -1,0 +1,23 @@
+{
+    "appKeys": {},
+    "capabilities": [
+        ""
+    ],
+    "companyName": "symon_@online.de",
+    "enableMultiJS": true,
+    "longName": "Division",
+    "projectType": "native",
+    "resources": {
+        "media": []
+    },
+    "sdkVersion": "3",
+    "shortName": "Division",
+    "targetPlatforms": [
+        "chalk"
+    ],
+    "uuid": "3bd55eb5-117a-43e8-a3b9-a68f3daf9f32",
+    "versionLabel": "1.0",
+    "watchapp": {
+        "watchface": true
+    }
+}
