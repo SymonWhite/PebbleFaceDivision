@@ -8,6 +8,8 @@ static Layer *s_circle_layer;
 static Layer *s_analog_layer;
 //static Layer *s_digital_layer;
 static TextLayer *s_date_layer;
+static TextLayer *s_bt_layer;
+static TextLayer *s_batt_layer;
 static Layer *s_hour_line_layer;
 static Layer *s_minute_line_layer;
 static Layer *s_clockhand_layer;
@@ -17,6 +19,8 @@ static void deinit();
 static void main_window_load(Window*);
 static void main_window_unload(Window*);
 static void tick_handler(struct tm*, TimeUnits);
+static void bt_handler();
+static void batt_handler(BatteryChargeState);
 static void update_time();
 static void circle_layer_update_proc(Layer*, GContext*);
 static void analog_layer_update_proc(Layer*, GContext*);
@@ -40,22 +44,23 @@ static void init() {
     s_main_window = window_create();
 
     // Set handlers to manage the elements inside the Window
-    window_set_window_handlers(
-        s_main_window, 
-        (WindowHandlers) {
+    window_set_window_handlers(s_main_window, (WindowHandlers) {
             .load = main_window_load,
             .unload = main_window_unload
-        });
+        }
+   );
 
     // Show the Window on the watch, with animated=true
     bool animated = true;
     window_stack_push(s_main_window, animated);
 
     // Make sure the time is displayed from the start
-    update_time();
+    //update_time();
 
     // Register with TickTimerService
     tick_timer_service_subscribe(MINUTE_UNIT, tick_handler);
+    bluetooth_connection_service_subscribe((BluetoothConnectionHandler) bt_handler);
+    battery_state_service_subscribe((BatteryStateHandler) batt_handler);
 }
 
 static void deinit() {
@@ -70,14 +75,34 @@ static void main_window_load(Window *window) {
     Layer *window_layer = window_get_root_layer(window);
     GRect window_layer_bounds = layer_get_bounds(window_layer);
 
+    //create text layer for bluetooth status
+	//bt_layer = text_layer_create(GRect(0, 130, 144, 38));
+    s_bt_layer = text_layer_create(GRect(0, 130, window_layer_bounds.size.w, 50));
+	text_layer_set_background_color(s_bt_layer, GColorClear);
+	text_layer_set_text_color(s_bt_layer, GColorWhite);
+	text_layer_set_text_alignment(s_bt_layer, GTextAlignmentCenter);
+	text_layer_set_font(s_bt_layer, fonts_get_system_font(FONT_KEY_GOTHIC_14));
+	layer_add_child(window_get_root_layer(window), (Layer*) s_bt_layer);
+    //manually invoke bluetooth handler to refresh status on load
+	bt_handler();
+    
+    //create text layer for pebble battery status
+	//s_batt_layer = text_layer_create(GRect(5, 76, 20, 50));
+    s_batt_layer = text_layer_create(GRect(0, 25, window_layer_bounds.size.w, 50));
+	text_layer_set_background_color(s_batt_layer, GColorClear);
+	text_layer_set_text_color(s_batt_layer, GColorWhite);
+	text_layer_set_text_alignment(s_batt_layer, GTextAlignmentCenter);
+	text_layer_set_font(s_batt_layer, fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD));
+	layer_add_child(window_get_root_layer(window), (Layer*) s_batt_layer);
+	//manually invoke battery status handler to refresh status on load
+	batt_handler(battery_state_service_peek());
+    
     // Create layer
     s_circle_layer  = layer_create(window_layer_bounds);
     s_analog_layer  = layer_create(window_layer_bounds);
+    
     //s_digital_layer = layer_create(window_layer_bounds);
-    s_date_layer  = text_layer_create(
-        GRect(0, PBL_IF_ROUND_ELSE(100, 100), window_layer_bounds.size.w, 50)
-    );
-
+    s_date_layer  = text_layer_create(GRect(0, PBL_IF_ROUND_ELSE(100, 100), window_layer_bounds.size.w, 50));
     // Improve the layout to be more like a watchface
     text_layer_set_background_color(s_date_layer, GColorClear);
     text_layer_set_text_color(s_date_layer, GColorWhite);
@@ -86,10 +111,7 @@ static void main_window_load(Window *window) {
     text_layer_set_text_alignment(s_date_layer, GTextAlignmentCenter);
     
     // Create the TextLayer with specific bounds
-    s_time_layer = text_layer_create(
-        GRect(0, PBL_IF_ROUND_ELSE(30, 30), window_layer_bounds.size.w, 50)
-    );
-
+    s_time_layer = text_layer_create(GRect(0, PBL_IF_ROUND_ELSE(30, 30), window_layer_bounds.size.w, 50));
     // Improve the layout to be more like a watchface
     text_layer_set_background_color(s_time_layer, GColorClear);
     text_layer_set_text_color(s_time_layer, GColorWhite);
@@ -118,7 +140,7 @@ static void main_window_load(Window *window) {
     //layer_mark_dirty(s_date_layer);
     //layer_mark_dirty(s_digital_layer);
     
-    //update_time();
+    update_time();
 }
 
 static void main_window_unload(Window *window) {
@@ -129,6 +151,27 @@ static void main_window_unload(Window *window) {
 
 static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
     update_time();
+}
+
+void bt_handler() {
+	if (bluetooth_connection_service_peek()) {
+		text_layer_set_text(s_bt_layer, "BT ON");
+		//vibes_short_pulse();
+	} else {
+		text_layer_set_text(s_bt_layer, "BT OFF");
+		//vibes_short_pulse();
+	}
+}
+
+void batt_handler(BatteryChargeState charge_state) {
+    static char battery_text[] = "100%";
+
+  if (charge_state.is_charging) {
+    snprintf(battery_text, sizeof(battery_text), "C");
+  } else {
+    snprintf(battery_text, sizeof(battery_text), "%d%%", charge_state.charge_percent);
+  }
+  text_layer_set_text(s_batt_layer, battery_text);
 }
 
 static void update_time() {
