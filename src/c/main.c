@@ -8,7 +8,7 @@ static Layer *s_circle_layer;
 static Layer *s_analog_layer;
 //static Layer *s_digital_layer;
 static TextLayer *s_date_layer;
-static TextLayer *s_bt_layer;
+//static TextLayer *s_bt_layer;
 static TextLayer *s_batt_layer;
 static Layer *s_hour_line_layer;
 static Layer *s_minute_line_layer;
@@ -59,13 +59,20 @@ static void init() {
 
     // Register with TickTimerService
     tick_timer_service_subscribe(MINUTE_UNIT, tick_handler);
-    bluetooth_connection_service_subscribe((BluetoothConnectionHandler) bt_handler);
+//    connection_service_subscribe((ConnectionHandlers) {
+//        .pebble_app_connection_handler = app_connection_handler,
+//        //.pebblekit_connection_handler = kit_connection_handler
+//    };
+    //bluetooth_connection_service_subscribe((BluetoothConnectionHandler) bt_handler);
     battery_state_service_subscribe((BatteryStateHandler) batt_handler);
 }
 
 static void deinit() {
     //Destroy Window
     window_destroy(s_main_window);
+    tick_timer_service_unsubscribe();
+    bluetooth_connection_service_unsubscribe();
+    battery_state_service_unsubscribe();
 }
 
 static void main_window_load(Window *window) {
@@ -77,14 +84,14 @@ static void main_window_load(Window *window) {
 
     //create text layer for bluetooth status
 	//bt_layer = text_layer_create(GRect(0, 130, 144, 38));
-    s_bt_layer = text_layer_create(GRect(0, 130, window_layer_bounds.size.w, 50));
-	text_layer_set_background_color(s_bt_layer, GColorClear);
-	text_layer_set_text_color(s_bt_layer, GColorWhite);
-	text_layer_set_text_alignment(s_bt_layer, GTextAlignmentCenter);
-	text_layer_set_font(s_bt_layer, fonts_get_system_font(FONT_KEY_GOTHIC_14));
-	layer_add_child(window_get_root_layer(window), (Layer*) s_bt_layer);
+    //s_bt_layer = text_layer_create(GRect(0, 130, window_layer_bounds.size.w, 50));
+	//text_layer_set_background_color(s_bt_layer, GColorClear);
+	//text_layer_set_text_color(s_bt_layer, GColorWhite);
+	//text_layer_set_text_alignment(s_bt_layer, GTextAlignmentCenter);
+	//text_layer_set_font(s_bt_layer, fonts_get_system_font(FONT_KEY_GOTHIC_14));
+	//layer_add_child(window_get_root_layer(window), (Layer*) s_bt_layer);
     //manually invoke bluetooth handler to refresh status on load
-	bt_handler();
+	//bt_handler();
     
     //create text layer for pebble battery status
 	//s_batt_layer = text_layer_create(GRect(5, 76, 20, 50));
@@ -118,7 +125,8 @@ static void main_window_load(Window *window) {
     text_layer_set_text(s_time_layer, "00:00");
     text_layer_set_font(s_time_layer, fonts_get_system_font(FONT_KEY_BITHAM_42_LIGHT));
     text_layer_set_text_alignment(s_time_layer, GTextAlignmentCenter);
-
+    update_time();
+    
     // Assign the custom drawing procedure
     layer_set_update_proc(s_circle_layer, circle_layer_update_proc);
     layer_set_update_proc(s_analog_layer, analog_layer_update_proc);
@@ -147,22 +155,36 @@ static void main_window_unload(Window *window) {
     // Destroy TextLayer
     text_layer_destroy(s_time_layer);
     text_layer_destroy(s_date_layer);
+    //text_layer_destroy(s_bt_layer);
+    text_layer_destroy(s_batt_layer);
+    layer_destroy(s_circle_layer);
+    layer_destroy(s_analog_layer);
+    layer_destroy(s_hour_line_layer);
+    layer_destroy(s_minute_line_layer);
+    layer_destroy(s_clockhand_layer);
 }
 
 static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
+    static char s_date_buffer[14];
+    strftime(s_date_buffer, sizeof(s_date_buffer), "%d.%m KW%U", tick_time);
+    //APP_LOG(APP_LOG_LEVEL_DEBUG, s_date_buffer);
     update_time();
 }
-
+/*
 void bt_handler() {
 	if (bluetooth_connection_service_peek()) {
 		text_layer_set_text(s_bt_layer, "BT ON");
+//        GRect frame = grect_inset(layer_bounds, GEdgeInsets(3));
+//        graphics_context_set_stroke_color(ctx, GColorVividCerulean); // Set the line color
+//        graphics_context_set_stroke_width(ctx, outter_stroke_width); // Set the line width
+//        graphics_draw_arc(ctx, frame, GOvalScaleModeFitCircle, DEG_TO_TRIGANGLE(-360), DEG_TO_TRIGANGLE(-270));
 		//vibes_short_pulse();
 	} else {
 		text_layer_set_text(s_bt_layer, "BT OFF");
 		//vibes_short_pulse();
 	}
 }
-
+*/
 void batt_handler(BatteryChargeState charge_state) {
     static char battery_text[] = "100%";
 
@@ -200,25 +222,24 @@ static void update_time() {
 }
 
 static void circle_layer_update_proc(Layer *layer, GContext *ctx) {
+    //GRect layer_bounds = layer_get_bounds(layer);
     GPoint center = GPoint(90, 90);
-
+    //GPoint polar = gpoint_from_polar(layer_bounds, GOvalScaleModeFitCircle, 90);
+    
     //outterCircle
     uint16_t outter_radius = 86;
     uint8_t outter_stroke_width = 7;
-    // Set the line color
-    //graphics_context_set_stroke_color(ctx, GColorOrange);
-    graphics_context_set_stroke_color(ctx, GColorOrange);
-    // Set the line width
-    graphics_context_set_stroke_width(ctx, outter_stroke_width);
-    //Draw a circle
-    graphics_draw_circle(ctx, center, outter_radius);
-
+    graphics_context_set_stroke_color(ctx, GColorOrange); // Set the line color
+    graphics_context_set_stroke_width(ctx, outter_stroke_width); // Set the line width
+    graphics_draw_circle(ctx, center, outter_radius); //Draw a circle
+    
     //innerCircle
     /*
     uint16_t inner_radius = 75;
     uint8_t inner_stroke_width = 1;
     graphics_context_set_stroke_color(ctx, GColorDarkCandyAppleRed);
     graphics_context_set_stroke_width(ctx, inner_stroke_width);
+    //graphics_draw_circle(ctx, polar, inner_radius);
     graphics_draw_circle(ctx, center, inner_radius);
     */
 }
@@ -235,15 +256,19 @@ static GPoint* getLinePoints (int32_t angle, int start_radius, int end_radius) {
     );
     return pointArray;
 }
-
+/*
 static void getCirleLinePoints(int lineCount, int start_radius, int end_radius) {
     for (int i = 0; i < lineCount; i++) {
         int32_t angle = TRIG_MAX_ANGLE * i / lineCount;
         GPoint *point_array = getLinePoints(angle, start_radius, end_radius);
-        APP_LOG(APP_LOG_LEVEL_DEBUG, "graphics_draw_line(ctx, GPoint(%d,%d), GPoint(%d,%d));", (int)point_array[0].x, (int)point_array[0].y, (int)point_array[1].x, (int)point_array[1].y);
+        APP_LOG(
+            APP_LOG_LEVEL_DEBUG, "graphics_draw_line(ctx, GPoint(%d,%d), GPoint(%d,%d));", 
+            (int)point_array[0].x, (int)point_array[0].y, 
+            (int)point_array[1].x, (int)point_array[1].y
+        );
     }
 }
-
+*/
 static void analog_layer_update_proc(Layer *layer, GContext *ctx) {
     GRect layer_bounds = layer_get_bounds(layer);
     
@@ -378,25 +403,20 @@ static void clockhand_layer_update_proc(Layer* layer, GContext* ctx) {
     
     int32_t minute_angle = TRIG_MAX_ANGLE * tick_time->tm_min / 60;
     GPoint *minute_point_array = getLinePoints(minute_angle, 0, 73);
-    // Set the line color
-    graphics_context_set_stroke_color(ctx, GColorOrange);
-    // Set the line width
-    graphics_context_set_stroke_width(ctx, stroke_width_3);
-    // Draw a line
-    graphics_draw_line(ctx, minute_point_array[0] , minute_point_array[1]);
+    
+    graphics_context_set_stroke_color(ctx, GColorOrange); // Set the line color
+    graphics_context_set_stroke_width(ctx, stroke_width_3); // Set the line width
+    graphics_draw_line(ctx, minute_point_array[0] , minute_point_array[1]); // Draw a line
     
     int hour = tick_time->tm_hour;
     if (hour > 12) {
         hour = hour - 12;
     }
     int32_t angle_hour = (TRIG_MAX_ANGLE * hour / 12) + ((TRIG_MAX_ANGLE/12) * tick_time->tm_min /60);
-    //int32_t angle_hour = (TRIG_MAX_ANGLE * hour / 12);
     GPoint *hour_point_array = getLinePoints(angle_hour, 0, 60);
-    // Set the line color
-    graphics_context_set_stroke_color(ctx, GColorOrange);
-    // Set the line width
-    graphics_context_set_stroke_width(ctx, stroke_width_3);
-    // Draw a line
-    graphics_draw_line(ctx, hour_point_array[0] , hour_point_array[1]);
+    
+    graphics_context_set_stroke_color(ctx, GColorOrange); // Set the line color
+    graphics_context_set_stroke_width(ctx, stroke_width_3); // Set the line width
+    graphics_draw_line(ctx, hour_point_array[0] , hour_point_array[1]); // Draw a line
 }
 

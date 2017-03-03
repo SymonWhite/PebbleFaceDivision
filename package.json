@@ -1,0 +1,24 @@
+{
+    "author": "symon_@online.de",
+    "dependencies": {},
+    "keywords": [],
+    "name": "division",
+    "pebble": {
+        "displayName": "Division",
+        "enableMultiJS": true,
+        "messageKeys": [],
+        "projectType": "native",
+        "resources": {
+            "media": []
+        },
+        "sdkVersion": "3",
+        "targetPlatforms": [
+            "chalk"
+        ],
+        "uuid": "3bd55eb5-117a-43e8-a3b9-a68f3daf9f32",
+        "watchapp": {
+            "watchface": true
+        }
+    },
+    "version": "1.0.0"
+}
